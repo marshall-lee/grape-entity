@@ -1,5 +1,4 @@
 require 'multi_json'
-require 'set'
 
 module Grape
   # An Entity is a lightweight structure that allows you to easily
@@ -167,7 +166,7 @@ module Grape
           nested_exposures.deep_merge!(@nested_attributes.last.to_sym  => { attribute => options })
         end
 
-        exposures[attribute] = options
+        exposures[attribute] = Exposure.new(options)
 
         # Nested exposures are given in a block with no parameters.
         if block_given? && block.parameters.empty?
@@ -192,7 +191,7 @@ module Grape
     #     end
     #   end
     def self.with_options(options)
-      (@block_options ||= []).push(valid_options(options))
+      (@block_options ||= []).push(Exposure.valid_options(options))
       yield
       @block_options.pop
     end
@@ -515,7 +514,7 @@ module Grape
     end
 
     def self.key_for(attribute)
-      exposures[attribute.to_sym][:as] || name_for(attribute)
+      exposures[attribute.to_sym].as || name_for(attribute)
     end
 
     def self.nested_exposures_for(attribute)
@@ -635,11 +634,6 @@ module Grape
       using_options
     end
 
-    # All supported options.
-    OPTIONS = [
-      :as, :if, :unless, :using, :with, :proc, :documentation, :format_with, :safe, :if_extras, :unless_extras
-    ].to_set.freeze
-
     # Merges the given options with current block options.
     #
     # @param options [Hash] Exposure options.
@@ -665,20 +659,7 @@ module Grape
       @block_options ||= []
       opts.merge @block_options.inject({}) { |final, step|
         final.merge(step, &merge_logic)
-      }.merge(valid_options(options), &merge_logic)
-    end
-
-    # Raises an error if the given options include unknown keys.
-    # Renames aliased options.
-    #
-    # @param options [Hash] Exposure options.
-    def self.valid_options(options)
-      options.keys.each do |key|
-        fail ArgumentError, "#{key.inspect} is not a valid option." unless OPTIONS.include?(key)
-      end
-
-      options[:using] = options.delete(:with) if options.key?(:with)
-      options
+      }.merge(Exposure.valid_options(options), &merge_logic)
     end
   end
 end

@@ -16,7 +16,7 @@ describe Grape::Entity do
 
         it 'sets the same options for all exposures passed' do
           subject.expose :name, :email, :location, documentation: true
-          subject.exposures.values.each { |v| expect(v).to eq(documentation: true) }
+          subject.exposures.values.each { |v| expect(v.options).to eq(documentation: true) }
         end
       end
 
@@ -72,7 +72,7 @@ describe Grape::Entity do
           it 'sets the :proc option in the exposure options' do
             block = ->(_) { true }
             subject.expose :name, using: 'Awesome', &block
-            expect(subject.exposures[:name]).to eq(proc: block, using: 'Awesome')
+            expect(subject.exposures[:name].options).to eq(proc: block, using: 'Awesome')
           end
 
           it 'references an instance of the entity without any options' do
@@ -90,12 +90,17 @@ describe Grape::Entity do
               subject.expose :another_nested, using: 'Awesome'
             end
 
-            expect(subject.exposures).to eq(
-              awesome: {},
-              awesome__nested: { nested: true },
-              awesome__nested__moar_nested: { as: 'weee', nested: true },
-              awesome__another_nested: { using: 'Awesome', nested: true }
-            )
+            expect(subject.exposures.keys).to eq([
+              :awesome,
+              :awesome__nested,
+              :awesome__nested__moar_nested,
+              :awesome__another_nested
+            ])
+
+            expect(subject.exposures[:awesome].options).to eq({})
+            expect(subject.exposures[:awesome__nested].options).to eq({ nested: true })
+            expect(subject.exposures[:awesome__nested__moar_nested].options).to eq({ as: 'weee', nested: true })
+            expect(subject.exposures[:awesome__another_nested].options).to eq({ using: 'Awesome', nested: true })
           end
 
           it 'represents the exposure as a hash of its nested exposures' do
@@ -222,8 +227,8 @@ describe Grape::Entity do
             'foo'
           end
 
-          expect(subject.exposures[:name]).not_to have_key :proc
-          expect(child_class.exposures[:name]).to have_key :proc
+          expect(subject.exposures[:name].options).not_to have_key :proc
+          expect(child_class.exposures[:name].options).to have_key :proc
         end
       end
 
@@ -283,7 +288,7 @@ describe Grape::Entity do
         subject.expose :name, :email
         subject.unexpose :email
 
-        expect(subject.exposures).to eq(name: {})
+        expect(subject.exposures.keys).to eq([:name])
       end
 
       context 'inherited exposures' do
@@ -292,8 +297,8 @@ describe Grape::Entity do
           child_class = Class.new(subject)
           child_class.unexpose :email
 
-          expect(child_class.exposures).to eq(name: {})
-          expect(subject.exposures).to eq(name: {}, email: {})
+          expect(child_class.exposures.keys).to eq([:name])
+          expect(subject.exposures.keys).to eq([:name, :email])
         end
 
         context 'when called from the parent class' do
@@ -302,8 +307,8 @@ describe Grape::Entity do
             child_class = Class.new(subject)
             subject.unexpose :email
 
-            expect(subject.exposures).to eq(name: {})
-            expect(child_class.exposures).to eq(name: {}, email: {})
+            expect(subject.exposures.keys).to eq([:name])
+            expect(child_class.exposures.keys).to eq([:name, :email])
           end
         end
       end
@@ -327,7 +332,7 @@ describe Grape::Entity do
           end
         end
 
-        expect(subject.exposures[:awesome_thing]).to eq(if: { awesome: true }, using: 'Awesome')
+        expect(subject.exposures[:awesome_thing].options).to eq(if: { awesome: true }, using: 'Awesome')
       end
 
       it 'allows for nested .with_options' do
@@ -339,7 +344,7 @@ describe Grape::Entity do
           end
         end
 
-        expect(subject.exposures[:awesome_thing]).to eq(if: { awesome: true }, using: 'Something')
+        expect(subject.exposures[:awesome_thing].options).to eq(if: { awesome: true }, using: 'Something')
       end
 
       it 'overrides nested :as option' do
@@ -349,7 +354,7 @@ describe Grape::Entity do
           end
         end
 
-        expect(subject.exposures[:awesome_thing]).to eq(as: :extra_smooth)
+        expect(subject.exposures[:awesome_thing].options).to eq(as: :extra_smooth)
       end
 
       it 'merges nested :if option' do
@@ -371,7 +376,7 @@ describe Grape::Entity do
           end
         end
 
-        expect(subject.exposures[:awesome_thing]).to eq(
+        expect(subject.exposures[:awesome_thing].options).to eq(
           if: { awesome: false, less_awesome: true },
           if_extras: [:awesome, match_proc]
         )
@@ -396,7 +401,7 @@ describe Grape::Entity do
           end
         end
 
-        expect(subject.exposures[:awesome_thing]).to eq(
+        expect(subject.exposures[:awesome_thing].options).to eq(
           unless: { awesome: false, less_awesome: true },
           unless_extras: [:awesome, match_proc]
         )
@@ -409,7 +414,7 @@ describe Grape::Entity do
           end
         end
 
-        expect(subject.exposures[:awesome_thing]).to eq(using: 'SomethingElse')
+        expect(subject.exposures[:awesome_thing].options).to eq(using: 'SomethingElse')
       end
 
       it 'aliases :with option to :using option' do
@@ -418,7 +423,7 @@ describe Grape::Entity do
             expose :awesome_thing, with: 'SomethingElse'
           end
         end
-        expect(subject.exposures[:awesome_thing]).to eq(using: 'SomethingElse')
+        expect(subject.exposures[:awesome_thing].options).to eq(using: 'SomethingElse')
       end
 
       it 'overrides nested :proc option' do
@@ -430,7 +435,7 @@ describe Grape::Entity do
           end
         end
 
-        expect(subject.exposures[:awesome_thing]).to eq(proc: match_proc)
+        expect(subject.exposures[:awesome_thing].options).to eq(proc: match_proc)
       end
 
       it 'overrides nested :documentation option' do
@@ -440,7 +445,7 @@ describe Grape::Entity do
           end
         end
 
-        expect(subject.exposures[:awesome_thing]).to eq(documentation: { desc: 'Other description.' })
+        expect(subject.exposures[:awesome_thing].options).to eq(documentation: { desc: 'Other description.' })
       end
     end
 
